@@ -1,4 +1,5 @@
-# main.py
+# main.py - Main CLI entry point for candidate ranker pipeline
+# Version tracked in git repository.
 import json
 import zipfile
 import csv
@@ -52,7 +53,7 @@ def load_candidates(filepath: str) -> list[dict]:
 
 def main():
     parser = argparse.ArgumentParser(description="Redrob AI Recruiter Ranker")
-    parser.add_argument("--candidates", type=str, default="data/candidates.zip", help="Path to candidates file (.jsonl, .jsonl.gz, or .zip)")
+    parser.add_argument("--candidates", type=str, default="data1/candidates.zip", help="Path to candidates file (.jsonl, .jsonl.gz, or .zip)")
     parser.add_argument("--out", type=str, default="Team_recruiters_submission.csv", help="Output CSV path")
     parser.add_argument("--top_n", type=int, default=100, help="Number of candidates to rank")
     args = parser.parse_args()
@@ -85,7 +86,7 @@ def main():
         writer.writeheader()
         writer.writerows(results)
 
-    print("🎉 Submission generated successfully!")
+    print("Submission generated successfully!")
     print(f"   - Total rows: {len(results)}")
     print(f"   - Top score: {results[0]['score']}")
     print(f"   - {args.top_n}th score: {results[-1]['score']}")

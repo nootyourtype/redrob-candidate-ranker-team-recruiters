@@ -1,3 +1,5 @@
+# feature_engineering.py - Layer 1 Feature Extraction
+# Version tracked in git repository.
 """
 Layer 1 — Feature Extraction
 =============================
@@ -18,8 +20,14 @@ from config import (
     SECONDARY_CITY_PREFERENCE, CULTURE_MISFIT_TERMS, NON_COMPETE_TERMS,
     CV_SPEECH_DOMAIN_TERMS, MANAGER_ONLY_TITLES, FRAMEWORK_ONLY_TERMS,
     RANKING_TITLE_KEYWORDS, PRE_LLM_TOOLS,
+    GENERIC_ML_TITLES, MISALIGNED_TITLE_TERMS,
     GHOST_RESPONSE_RATE_THRESHOLD, GHOST_INACTIVE_DAYS_THRESHOLD,
+    REFERENCE_DATE,
 )
+
+_REF_YEAR = REFERENCE_DATE.year
+_RECENT_CODING_CUTOFF = REFERENCE_DATE.replace(year=_REF_YEAR - 1, month=6)
+_JD_SIMILARITY_CACHE: dict[str, float] = {}
 
 # ────────────────────────────────────────────────────────────────────────────
 # Text Utilities (cached / pre-compiled)
@@ -188,14 +196,13 @@ def calculate_ai_yoe_score(candidate: dict) -> float:
 
 def calculate_ranking_yoe_score(candidate: dict) -> float:
     """
-    Years specifically in ranking/search/retrieval roles (title-based).
-    More precise than generic AI YoE.
+    Years in ranking/search/retrieval roles (title + role description).
     """
     history = candidate.get("career_history", [])
     ranking_months = 0
     for job in history:
-        title = job.get("title", "")
-        if any_term_in_text(title, RANKING_TITLE_KEYWORDS):
+        combined = job.get("title", "") + " " + job.get("description", "")
+        if any_term_in_text(combined, RANKING_TITLE_KEYWORDS):
             ranking_months += job.get("duration_months", 0)
     ranking_yoe = ranking_months / 12.0
     if ranking_yoe >= 4.0:
@@ -237,7 +244,6 @@ def calculate_recent_coder_score(candidate: dict) -> float:
         return 1.0
 
     history = candidate.get("career_history", [])
-    current_year = datetime.now().year
     for job in history:
         end_date = job.get("end_date")
         recent = False
@@ -246,8 +252,7 @@ def calculate_recent_coder_score(candidate: dict) -> float:
         else:
             try:
                 e_dt = datetime.strptime(end_date, "%Y-%m-%d")
-                cutoff = datetime.now().replace(year=current_year - 1, month=6)
-                recent = e_dt >= cutoff
+                recent = e_dt >= _RECENT_CODING_CUTOFF
             except Exception:
                 pass
         if not recent:
@@ -312,36 +317,167 @@ def calculate_response_score(candidate: dict) -> float:
     if last_active:
         try:
             last_dt = datetime.strptime(last_active, "%Y-%m-%d")
-            days_ago = (datetime.now() - last_dt).days
+            days_ago = (REFERENCE_DATE - last_dt).days
             recency_score = max(0.0, 1.0 - days_ago / 180.0)
         except Exception:
             pass
 
-    return (response_rate * 0.30 + open_flag * 0.25 + time_score * 0.20 + recency_score * 0.25)
+    interview_rate = signals.get("interview_completion_rate", 0.5)
+
+    return (
+        response_rate * 0.26
+        + open_flag * 0.20
+        + time_score * 0.16
+        + recency_score * 0.18
+        + interview_rate * 0.20
+    )
 
 
 def calculate_shipping_score(candidate: dict) -> float:
     """Track record of deploying/shipping production systems."""
     history = candidate.get("career_history", [])
     score = 0.0
-    current_year = datetime.now().year
 
     for job in history:
         desc = job.get("description", "").lower()
         end_date = job.get("end_date")
-        end_year = current_year
+        end_year = _REF_YEAR
         if end_date:
             try:
                 end_year = datetime.strptime(end_date, "%Y-%m-%d").year
             except Exception:
-                end_year = current_year
+                end_year = _REF_YEAR
 
-        years_ago = current_year - end_year
+        years_ago = _REF_YEAR - end_year
         weight = 3.0 if years_ago <= 2 else 1.5 if years_ago <= 5 else 0.7
         matches = sum(1 for kw in SHIPPING_KEYWORDS if kw in desc)
         score += matches * weight
 
     return min(score / 10.0, 1.0)
+
+
+def build_jd_similarity_cache(candidates: list[dict]) -> None:
+    """Pre-compute TF-IDF cosine similarity to JD for all candidates (called once per run)."""
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.metrics.pairwise import cosine_similarity
+
+    texts = [_full_text(c) for c in candidates]
+    vectorizer = TfidfVectorizer(
+        max_features=8000,
+        stop_words="english",
+        sublinear_tf=True,
+        ngram_range=(1, 2),
+    )
+    matrix = vectorizer.fit_transform(texts + [JD_TEXT])
+    jd_vec = matrix[-1]
+    sims = cosine_similarity(matrix[:-1], jd_vec).ravel()
+
+    _JD_SIMILARITY_CACHE.clear()
+    for candidate, sim in zip(candidates, sims):
+        _JD_SIMILARITY_CACHE[candidate["candidate_id"]] = float(sim)
+
+
+def calculate_jd_similarity_score(candidate: dict) -> float:
+    """TF-IDF cosine similarity to the job description, scaled to [0, 1]."""
+    raw = _JD_SIMILARITY_CACHE.get(candidate["candidate_id"], 0.0)
+    return min(raw / 0.30, 1.0)
+
+
+def calculate_title_fit_score(candidate: dict) -> float:
+    """How well the current title/headline matches ranking-retrieval engineering."""
+    profile = candidate["profile"]
+    combined = profile.get("current_title", "") + " " + profile.get("headline", "")
+    normalized = normalize_text(combined)
+
+    if any_term_in_text(normalized, RANKING_TITLE_KEYWORDS):
+        score = 1.0
+    elif any_term_in_text(normalized, GENERIC_ML_TITLES):
+        score = 0.78
+    elif any_term_in_text(normalized, TECHNICAL_TITLES):
+        score = 0.55
+    elif any_term_in_text(normalized, MISALIGNED_TITLE_TERMS):
+        score = 0.15
+    else:
+        score = 0.35
+
+    # Career-depth override: retrieval evidence outweighs generic titles like "AI Specialist"
+    ranking_yoe = calculate_ranking_yoe_score(candidate)
+    retrieval = calculate_retrieval_score(candidate)
+    production = calculate_production_fit(candidate)
+
+    if ranking_yoe >= 0.6:
+        score = max(score, 0.92)
+    elif ranking_yoe >= 0.2:
+        score = max(score, 0.78)
+    elif retrieval >= 0.95 and production >= 0.50:
+        score = max(score, 0.85)
+    elif retrieval >= 0.90 and production >= 0.40:
+        score = max(score, 0.72)
+    elif retrieval >= 0.85:
+        score = max(score, 0.62)
+
+    return score
+
+
+def calculate_recruiter_demand_score(candidate: dict) -> float:
+    """Recruiter demand from saves, search appearances, and profile views."""
+    signals = candidate["redrob_signals"]
+    saves = signals.get("saved_by_recruiters_30d", 0)
+    search = signals.get("search_appearance_30d", 0)
+    views = signals.get("profile_views_received_30d", 0)
+
+    save_s = min(saves / 50.0, 1.0)
+    search_s = min(search / 400.0, 1.0)
+    view_s = min(views / 200.0, 1.0)
+    return save_s * 0.35 + search_s * 0.40 + view_s * 0.25
+
+
+def calculate_platform_skill_score(candidate: dict) -> float:
+    """Average Redrob skill-assessment scores for JD-relevant skills."""
+    assessments = candidate["redrob_signals"].get("skill_assessment_scores", {})
+    if not assessments:
+        return 0.35
+
+    relevant_keywords = MUST_HAVE_CONCEPTS.union(VECTOR_DBS).union(CORE_LANG).union(
+        {"python", "information retrieval", "nlp", "search", "ranking"}
+    )
+    relevant_scores = []
+    for name, score in assessments.items():
+        name_lower = name.lower()
+        if any(kw in name_lower for kw in relevant_keywords):
+            relevant_scores.append(score)
+
+    if not relevant_scores:
+        relevant_scores = list(assessments.values())[:3]
+
+    avg = sum(relevant_scores) / len(relevant_scores)
+    return min(avg / 85.0, 1.0)
+
+
+def calculate_product_engineer_fit(candidate: dict) -> float:
+    """Product-engineering orientation: non-consultancy employers and shipping evidence."""
+    history = candidate.get("career_history", [])
+    if not history:
+        return 0.2
+
+    product_jobs = sum(
+        1 for job in history
+        if not any(service in job.get("company", "").lower() for service in SERVICE_COMPANIES)
+    )
+    product_ratio = product_jobs / len(history)
+    ship = calculate_shipping_score(candidate)
+
+    score = product_ratio * 0.40
+    if ship > 0.3:
+        score += 0.30
+    if not is_researcher_profile(candidate) or ship > 0.4:
+        score += 0.15
+
+    current_co = candidate["profile"].get("current_company", "").lower()
+    if not any(service in current_co for service in SERVICE_COMPANIES):
+        score += 0.15
+
+    return min(score, 1.0)
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -488,7 +624,7 @@ def is_ghost(candidate: dict) -> bool:
     if last_active:
         try:
             last_dt = datetime.strptime(last_active, "%Y-%m-%d")
-            inactive_days = (datetime.now() - last_dt).days
+            inactive_days = (REFERENCE_DATE - last_dt).days
         except Exception:
             pass
 
@@ -575,6 +711,14 @@ def extract_facts(candidate: dict) -> dict:
         profile.get("current_company", "Unknown")
     )
 
+    education = candidate.get("education", [])
+    top_edu = education[0] if education else {}
+    edu_tier = top_edu.get("tier", "unknown")
+    edu_institution = top_edu.get("institution", "")
+
+    signals = candidate["redrob_signals"]
+    assessments = signals.get("skill_assessment_scores", {})
+
     return {
         "yoe": profile.get("years_of_experience", 0),
         "current_title": profile.get("current_title", "Unknown"),
@@ -582,8 +726,8 @@ def extract_facts(candidate: dict) -> dict:
         "top_skills": top_skills,
         "has_product_experience": has_product_experience,
         "best_product_company": best_product_company,
-        "notice_period": candidate["redrob_signals"].get("notice_period_days", 90),
-        "willing_to_relocate": candidate["redrob_signals"].get("willing_to_relocate", False),
+        "notice_period": signals.get("notice_period_days", 90),
+        "willing_to_relocate": signals.get("willing_to_relocate", False),
         "location": profile.get("location", "Unknown"),
         "has_vector_db_experience": has_vector_db_experience(candidate),
         "has_evaluation_experience": has_evaluation_experience(candidate),
@@ -593,4 +737,20 @@ def extract_facts(candidate: dict) -> dict:
         "is_researcher": is_researcher_profile(candidate),
         "has_closed_system_signal": has_closed_system_signal(candidate),
         "shipping_score": calculate_shipping_score(candidate),
+        "title_fit_score": calculate_title_fit_score(candidate),
+        "jd_similarity_score": calculate_jd_similarity_score(candidate),
+        "recruiter_demand_score": calculate_recruiter_demand_score(candidate),
+        "platform_skill_score": calculate_platform_skill_score(candidate),
+        "product_engineer_fit": calculate_product_engineer_fit(candidate),
+        "saved_by_recruiters_30d": signals.get("saved_by_recruiters_30d", 0),
+        "search_appearance_30d": signals.get("search_appearance_30d", 0),
+        "profile_views_received_30d": signals.get("profile_views_received_30d", 0),
+        "interview_completion_rate": signals.get("interview_completion_rate", 0.0),
+        "skill_assessments": assessments,
+        "edu_tier": edu_tier,
+        "edu_institution": edu_institution,
+        "title_is_ranking_role": any_term_in_text(
+            normalize_text(profile.get("current_title", "") + " " + profile.get("headline", "")),
+            RANKING_TITLE_KEYWORDS,
+        ),
     }

@@ -1,3 +1,5 @@
+# ranker.py - Layer 2 Scoring & Penalties Engine
+# Version tracked in git repository.
 """
 Layer 2 — Weighted Scoring & Multiplicative Penalties
 =====================================================
@@ -23,6 +25,12 @@ from feature_engineering import (
     calculate_notice_score,
     calculate_response_score,
     calculate_shipping_score,
+    calculate_title_fit_score,
+    calculate_jd_similarity_score,
+    calculate_recruiter_demand_score,
+    calculate_platform_skill_score,
+    calculate_product_engineer_fit,
+    build_jd_similarity_cache,
     # Dealbreaker detectors
     is_honeypot,
     has_non_compete,
@@ -55,18 +63,23 @@ def score_candidate(c: dict) -> float:
 
     # ── Layer 2a: Compute positive feature scores ──
     feature_scores = {
-        "retrieval_score":     calculate_retrieval_score(c),
-        "production_fit":      calculate_production_fit(c),
-        "evaluation_score":    calculate_evaluation_score(c),
-        "pre_llm_score":       calculate_pre_llm_score(c),
-        "ai_yoe_score":        calculate_ai_yoe_score(c),
-        "ranking_yoe_score":   calculate_ranking_yoe_score(c),
-        "experience_fit":      calculate_experience_fit(c),
-        "recent_coder_score":  calculate_recent_coder_score(c),
-        "location_score":      calculate_location_score(c),
-        "notice_score":        calculate_notice_score(c),
-        "response_score":      calculate_response_score(c),
-        "shipping_score":      calculate_shipping_score(c),
+        "retrieval_score":          calculate_retrieval_score(c),
+        "production_fit":           calculate_production_fit(c),
+        "evaluation_score":         calculate_evaluation_score(c),
+        "pre_llm_score":            calculate_pre_llm_score(c),
+        "ai_yoe_score":             calculate_ai_yoe_score(c),
+        "ranking_yoe_score":        calculate_ranking_yoe_score(c),
+        "title_fit_score":          calculate_title_fit_score(c),
+        "jd_similarity_score":      calculate_jd_similarity_score(c),
+        "recruiter_demand_score":   calculate_recruiter_demand_score(c),
+        "platform_skill_score":     calculate_platform_skill_score(c),
+        "product_engineer_fit":     calculate_product_engineer_fit(c),
+        "experience_fit":           calculate_experience_fit(c),
+        "recent_coder_score":       calculate_recent_coder_score(c),
+        "location_score":           calculate_location_score(c),
+        "notice_score":             calculate_notice_score(c),
+        "response_score":           calculate_response_score(c),
+        "shipping_score":           calculate_shipping_score(c),
     }
 
     base_score = sum(
@@ -105,11 +118,15 @@ def score_candidate(c: dict) -> float:
 def rank_candidates(candidates: list[dict], top_n: int = 100) -> list[dict]:
     """
     Score all candidates, sort by score descending with tie-breaking
-    by candidate_id ascending, return top N.
+    by candidate_id ascending, return top N (excluding zero-score honeypots).
     """
+    build_jd_similarity_cache(candidates)
+
     scored = []
     for c in candidates:
         score = score_candidate(c)
+        if score <= 0.0:
+            continue
         facts = extract_facts(c)
         scored.append({
             "candidate_id": c["candidate_id"],

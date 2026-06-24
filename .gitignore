@@ -1,13 +1,21 @@
 # ==============================================
-#  .gitignore – Redrob Hackathon Submission
+#  .gitignore – Redrob Hackathon Submission (Team Recruiters)
 # ==============================================
 
 # ── Files that exceed GitHub's 100 MB hard limit ─────────────────────────────
-# Raw JSONL (~465 MB) – use data/candidates.zip (~54 MB) instead
+# Raw JSONL (~465 MB) – use data1/candidates.zip (~54 MB) instead
 data/candidates.jsonl
+data1/candidates.jsonl
 
 # Root-level zip that bundles the raw data (~108 MB)
-data.zip
+data1.zip
+
+# ── Local duplicates / temp outputs ──────────────────────────────────────────
+m/
+baseline_submission.csv
+test_output.csv
+test_*.csv
+run*.csv
 
 # ── Python cache & compiled bytecode ─────────────────────────────────────────
 __pycache__/

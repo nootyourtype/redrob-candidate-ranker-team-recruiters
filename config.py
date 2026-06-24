@@ -1,4 +1,10 @@
+# config.py - Configuration constants and patterns for candidate ranking.
+# Managed in git repository: team_recruiters candidate discovery.
 import re
+from datetime import datetime
+
+# Fixed reference date for time-based features (reproducible across runs).
+REFERENCE_DATE = datetime(2026, 6, 1)
 
 # 1. Strict Pure Services Penalty List (Lowercase for matching)
 SERVICE_COMPANIES = {
@@ -70,10 +76,20 @@ FRAMEWORK_ONLY_TERMS = {
     "haystack", "semantic kernel"
 }
 
-# --- NEW: Ranking-specific job title keywords ---
+# --- Ranking-specific and title-fit patterns ---
 RANKING_TITLE_KEYWORDS = {
     "search", "ranking", "retrieval", "recommendation", "relevance",
     "discovery", "matching", "information retrieval", "ir engineer"
+}
+GENERIC_ML_TITLES = {
+    "ml engineer", "machine learning engineer", "data scientist",
+    "applied scientist", "ai engineer", "nlp engineer", "senior ml",
+}
+MISALIGNED_TITLE_TERMS = {
+    "hr manager", "accountant", "graphic designer", "content writer",
+    "sales executive", "customer support", "civil engineer", "mechanical engineer",
+    "devops engineer", "operations manager", "marketing manager", "business analyst",
+    "project manager", "delivery manager",
 }
 
 # --- NEW: Pre-LLM era classic ML tools ---
@@ -100,20 +116,27 @@ IDEAL_YOE_MAX = 9.0
 IDEAL_AI_YOE = 5.0
 MAX_NOTICE_DAYS = 90
 
-# 5. Layer 2 Scoring Weights (positive features, sum to ~1.0)
+# 5. Layer 2 Scoring Weights (positive features, sum to 1.0)
+# Tuned against human-labeled candidates: emphasize retrieval/production depth,
+# reduce over-reliance on title wording and recruiter visibility alone.
 POSITIVE_WEIGHTS = {
-    "retrieval_score":     0.18,   # Core retrieval/ranking skill match
-    "production_fit":      0.16,   # Vector DB + hybrid search + eval + shipping
-    "evaluation_score":    0.12,   # NDCG/MRR/precision@k evidence
-    "pre_llm_score":       0.10,   # Pre-2022 search/ranking/ML experience
-    "ai_yoe_score":        0.08,   # Total AI/ML years of experience
-    "ranking_yoe_score":   0.08,   # Years specifically in ranking/search roles
-    "experience_fit":      0.06,   # Overall YOE sweet-spot (5-9 years)
-    "recent_coder_score":  0.06,   # Evidence of hands-on coding within 18 months
-    "location_score":      0.05,   # Geography preference (Pune/Noida > other)
-    "notice_score":        0.04,   # Notice period (<=30 best)
-    "response_score":      0.04,   # Recruiter response rate + activity recency
-    "shipping_score":      0.03,   # Track record of shipping/deploying
+    "retrieval_score":          0.17,  # Core retrieval/ranking skill match
+    "production_fit":           0.13,  # Vector DB + hybrid search + eval + shipping
+    "evaluation_score":         0.08,  # NDCG/MRR/precision@k evidence
+    "pre_llm_score":            0.06,  # Pre-2022 search/ranking/ML experience
+    "ai_yoe_score":             0.06,  # Total AI/ML years of experience
+    "ranking_yoe_score":        0.08,  # Years in ranking/search roles
+    "title_fit_score":          0.06,  # Current title alignment (with career override)
+    "jd_similarity_score":      0.04,  # TF-IDF cosine similarity to JD
+    "recruiter_demand_score":   0.03,  # Saves, search appearances, profile views
+    "platform_skill_score":     0.03,  # Redrob skill assessment scores
+    "product_engineer_fit":     0.05,  # Product-company + shipping orientation
+    "experience_fit":           0.04,  # Overall YOE sweet-spot (5-9 years)
+    "recent_coder_score":       0.04,  # Hands-on coding within 18 months
+    "location_score":           0.03,  # Geography preference
+    "notice_score":             0.02,  # Notice period
+    "response_score":           0.05,  # Recruiter response + interview reliability
+    "shipping_score":           0.03,  # Track record of shipping/deploying
 }
 
 # 6. Multiplicative Penalty Factors (dealbreakers, each in [0, 1])
