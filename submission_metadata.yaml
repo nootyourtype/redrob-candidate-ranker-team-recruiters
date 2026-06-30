@@ -1,0 +1,91 @@
+# Redrob Hackathon — Submission Metadata
+# Mirrors the metadata entered in the upload portal.
+
+# ============================================================================
+# Team identity
+# ============================================================================
+team_name: "Team_recruiters"
+
+primary_contact:
+  name: "Manan Jain"
+  email: "tatedmanan10@gmail.com"
+  phone: "+91-8530707219"
+
+team_members:
+  - name: "Manan Jain"
+    email: "tatedmanan10@gmail.com"
+    role: "ML Engineer"
+  - name: "Tanish Loya"
+    email: "tanishloya73@gmail.com"
+    role: "ML Engineer"
+  - name: "Aqdas Shaikh"
+    email: "aqdas109@gmail.com"
+    role: "Data Engineer"
+  - name: "Sadhan H Shinde"
+    email: "sadhanhshinde@gmail.com"
+    role: "Data Engineer"
+
+# ============================================================================
+# Code and reproducibility
+# ============================================================================
+github_repo: "https://github.com/Mananjain2804/redrob-candidate-ranker-team-recruiters"
+sandbox_link: "https://colab.research.google.com/drive/1DSHvUYkH8Z6mOMNdXmfb17l2o9HBzCDz?usp=sharing"
+
+reproduce_command: "python main.py --candidates data1/candidates.zip --out Team_recruiters_submission.csv --top_n 100"
+
+# ============================================================================
+# Compute environment
+# ============================================================================
+compute:
+  platform: "Windows laptop"
+  cpu_cores: 4                         # generic — update if you check Task Manager
+  ram_gb: 16
+  python_version: "3.11"               # update to your actual `python --version`
+  os: "Windows 11"
+  uses_gpu_for_inference: false
+  has_network_during_ranking: false
+  pre_computation_required: false
+  pre_computation_time_minutes: 0
+
+# ============================================================================
+# AI tools declaration
+# ============================================================================
+ai_tools_used:
+  - "Claude"
+  - "GitHub Copilot"
+
+ai_usage_summary: |
+  Used Claude for architecture discussion, code review, feature design,
+  iterative testing, and the reasoning engine. Used GitHub Copilot for
+  autocompletion and boilerplate. All ranking logic was designed, validated,
+  and tuned by the team through cross-validation experiments and stress tests.
+  No candidate data was sent to any hosted LLM; ranking is fully deterministic
+  and runs offline.
+
+# ============================================================================
+# Approach summary
+# ============================================================================
+methodology_summary: |
+  A deterministic five-dimension weighted ranker with no external dependencies.
+  Each candidate is scored on JD alignment (0.30), technical depth (0.30),
+  production-shipping evidence (0.25), availability (0.08), and behavioral
+  reliability (0.07). A multiplicative penalty layer catches dealbreakers —
+  YoE over-claims (derived from career history, not the unreliable profile
+  field), keyword stuffing, copy-paste descriptions, culture-statement
+  contradictions, non-compete clauses, manager-only profiles, eval-framework
+  absence, and flight risk. Three hard caps handle unreachable candidates,
+  visa constraints, and confirmed data-integrity issues. An 81.5% honeypot
+  pre-filter removes impossible profiles before scoring. A pairwise re-ranking
+  pass resolves close calls in the top 100 using six ordered recruiter-style
+  rules. Runtime ~26s on CPU for 100K candidates, ~1.6 GB peak memory, pure
+  Python standard library. Fully reproducible: identical CSV across runs.
+
+# ============================================================================
+# Declarations
+# ============================================================================
+declarations:
+  read_submission_spec: true
+  code_is_original_work: true
+  no_collusion: true
+  honeypot_check_done: true
+  reproduction_tested: true

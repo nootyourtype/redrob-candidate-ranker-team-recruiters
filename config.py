@@ -1,155 +1,147 @@
-# config.py - Configuration constants and patterns for candidate ranking.
-# Managed in git repository: team_recruiters candidate discovery.
-import re
+# config.py - Configuration constants and patterns for V3 candidate ranking.
 from datetime import datetime
 
-# Fixed reference date for time-based features (reproducible across runs).
-REFERENCE_DATE = datetime(2026, 6, 1)
+REFERENCE_DATE = datetime(2026, 6, 12)
+CUTOFF_PRE_LLM = datetime(2022, 11, 1).date()
 
-# 1. Strict Pure Services Penalty List (Lowercase for matching)
-SERVICE_COMPANIES = {
-    "tcs", "infosys", "wipro", "accenture", "cognizant",
-    "capgemini", "hcl", "tech mahindra", "mindtree", "larsen & toubro", "mphasis", "hexaware"
-}
+TIER1_LOCATIONS = {"pune", "noida"}
+TIER2_LOCATIONS = {"hyderabad", "delhi", "ncr", "gurugram", "gurgaon",
+                   "mumbai", "bangalore", "bengaluru", "chennai",
+                   "kolkata", "kochi", "jaipur", "ahmedabad"}
 
-# 2. Core JD Requirements for Heuristic Scoring
-MUST_HAVE_CONCEPTS = {
-    "retrieval", "ranking", "search", "recommendation", "matching", "vector", "semantic", "query",
-    "machine learning", "ml", "llm", "embedding", "rag"
-}
-VECTOR_DBS = {"pinecone", "weaviate", "qdrant", "milvus", "faiss", "opensearch", "elasticsearch", "vespa"}
-CORE_LANG = {"python"}
-EVALUATION_TERMS = {"ndcg", "mrr", "map", "offline evaluation", "online evaluation", "ab test", "ab testing", "evaluation framework", "metrics", "experiment", "precision", "recall", "f1"}
-HYBRID_SEARCH_TERMS = {"hybrid search", "semantic search", "dense retrieval", "sparse retrieval", "bm25", "vector search", "fusion search"}
+SALARY_BAND_MIN = 25.0
+SALARY_BAND_MAX = 80.0
 
-BAD_DOMAINS = {
-    "computer vision", "cv", "speech", "robotics", "autonomous", "self-driving", "image classification", "gesture", "vision"
-}
-RESEARCH_SIGNAL_TERMS = {
-    "research", "paper", "publication", "iclr", "neurips", "arxiv", "researcher", "academic", "thesis", "state of the art", "novel", "propose"
-}
-CLOSED_SYSTEM_TERMS = {
-    "proprietary", "closed system", "in-house", "legacy system", "black box", "confidential", "internal platform", "enterprise only"
-}
+SHIPPED_RETRIEVAL = [
+    "retrieval system","ranking system","recommendation system","search system",
+    "search engine","ranking pipeline","retrieval pipeline","recommendation engine",
+    "search ranking","ad ranking","ads ranking","product ranking","feed ranking",
+    "reranking","re-ranking","ranking model","learning to rank","information retrieval",
+    "query understanding","search relevance","candidate retrieval","document retrieval",
+    "semantic search","hybrid search","vector search","dense retrieval","sparse retrieval",
+    "faiss","elasticsearch","opensearch","solr","lucene","pinecone","weaviate","qdrant",
+    "milvus","chroma","bm25","ann index","approximate nearest","embedding index",
+    "served to users","serving millions","real users","production search",
+    "personalization system","content ranking","item ranking","result ranking",
+]
+PRE_LLM_RETRIEVAL = [
+    "information retrieval","learning to rank","bm25","lucene","solr","elasticsearch",
+    "search relevance","query understanding","collaborative filtering","matrix factorization",
+    "implicit feedback","click-through rate","ctr prediction","item2vec","word2vec",
+    "ranknet","lambdamart","listwise","pairwise","xgboost","lightgbm",
+]
+PRODUCTION_SIGNALS = [
+    "deployed to production","shipped to","launched","in production","serving",
+    "real users","millions of","billion","at scale","latency","throughput","qps",
+    "p99","sla","a/b test","a/b experiment","online evaluation","online eval",
+    "production system","production traffic","rollout","canary","monitoring",
+    "alerting","on-call","owned end-to-end",
+]
+CODING_SIGNALS = [
+    "implemented","built","developed","wrote","coded","engineered","designed",
+    "fine-tuned","fine tuned","shipped","deployed","optimised","optimized",
+    "refactored","debugged","maintained","drove","migrated","owned","trained",
+    "benchmarked","prototyped","contributed to","open-sourced",
+]
+PYTHON_SIGNALS = [
+    "python","pytorch","tensorflow","numpy","pandas","sklearn","scikit-learn",
+    "fastapi","flask","pydantic","asyncio","celery","sqlalchemy","pyspark",
+]
+EVAL_SIGNALS = [
+    "ndcg","mrr","map@","precision@","recall@","hit rate","evaluation framework",
+    "offline eval","online eval","a/b test","interleaving","counterfactual","uplift",
+    "ranking metric","retrieval metric","relevance judgment",
+]
+SYSTEM_SIGNALS = [
+    "distributed","large-scale","high-throughput","low-latency","scalable",
+    "fault-tolerant","microservice","stream processing","kafka","spark","flink",
+    "kinesis","event-driven","cache","sharding","replication",
+]
+AI_TERMS = [
+    "machine learning","deep learning","neural network","nlp",
+    "natural language processing","retrieval","ranking","recommendation",
+    "embedding","pytorch","tensorflow","sklearn","model training",
+    "model serving","feature engineering","a/b testing",
+]
+VIDEO_PRIMARY = [
+    "video recommendation","video ranking","content recommendation","watch history",
+    "streaming","video embeddings","video search","video retrieval",
+    "youtube recommendation","watch time",
+]
+CV_SPEECH_ROBOTICS = [
+    "computer vision","object detection","image classification","speech recognition",
+    "speech synthesis","text-to-speech","automatic speech","asr","tts","robotics",
+    "autonomous driving","lidar","point cloud","3d detection","pose estimation",
+]
+CONSULTING_FIRMS = [
+    "tcs","infosys","wipro","accenture","cognizant","capgemini","hcl",
+    "tech mahindra","mphasis","hexaware","mindtree","ltimindtree",
+]
+CONSULTING_INDUSTRIES = [
+    "it services","consulting","outsourcing","bpo",
+    "information technology and services","staffing",
+]
+JD_VECTOR_DB = [
+    "faiss","pinecone","weaviate","qdrant","milvus","chroma","elasticsearch",
+    "opensearch","pgvector","vespa","typesense","hybrid search","vector search",
+    "semantic search","dense retrieval","sparse retrieval","ann index","approximate nearest",
+]
+JD_RETRIEVAL_EVAL = [
+    "retrieval","ranking","recommendation","learning to rank","reranking","re-ranking",
+    "bm25","ndcg","mrr","map@","precision@","recall@","information retrieval",
+    "ranking model","search relevance","query understanding",
+]
+JD_LLM_FT = [
+    "llm","fine-tun","fine tun","lora","qlora","peft","rlhf",
+    "rag","retrieval augmented","instruction tuning","sft",
+]
+JD_HR_DOMAIN = [
+    "hr tech","recruiting","talent","marketplace","job board",
+    "applicant tracking","candidate matching","hiring",
+]
+CULTURE_NEGATIVE = [
+    "stable codebase","mature codebase","clear specs","predictable",
+    "well-documented codebase","stable environment","low ambiguity",
+    "clear requirements","need clear","dislike ambiguity","need stable",
+    "structured environment","clear specifications","well-defined",
+    "need documentation","requires stability",
+]
+CULTURE_POSITIVE = [
+    "ship fast","move fast","iterate","pragmatic","ship and iterate",
+    "comfortable with ambiguity","scrappy","fast-paced","quick experiments",
+    "bias for action","break assumptions","ship it","get things done","wear many hats",
+]
+NON_COMPETE_TERMS = [
+    "non-compete","non compete","restrictive covenant",
+    "non-solicitation","garden leave","cooling off period",
+]
+MANAGER_TITLES = [
+    "vp ","vice president","chief ","cto","ceo","coo","head of","director",
+    "senior manager","general manager","programme director","group manager",
+]
+SENIOR_IC_TITLES = [
+    "staff engineer","staff scientist","principal engineer",
+    "distinguished engineer","senior staff","tech lead",
+]
 FICTIONAL_COMPANIES = {
-    "dunder mifflin", "stark industries", "wayne enterprises", "acme corp", "hooli", "pied piper", "initech", "globex inc", "umbrella corp", "oscorp"
+    "dunder mifflin","stark industries","wayne enterprises","acme corp",
+    "hooli","pied piper","initech","globex inc","umbrella corp","oscorp",
 }
 
-PREFERRED_CITIES = {"pune", "noida", "gurgaon", "gurugram", "delhi", "ncr", "mumbai", "hyderabad", "bangalore", "bengaluru"}
-PRIMARY_CITY_PREFERENCE = {"pune", "noida"}
-SECONDARY_CITY_PREFERENCE = {"delhi", "ncr", "mumbai", "hyderabad", "bangalore", "bengaluru"}
-
-# --- NEW: Cultural Fit Mismatch Patterns ---
-# Signals that a candidate prefers stability/predictability when the JD demands
-# high ambiguity and shipping velocity
-CULTURE_MISFIT_TERMS = {
-    "stable environment", "predictable schedule", "clear specification", "clear specs",
-    "well-defined process", "mature codebase", "established team", "work-life balance",
-    "no overtime", "structured environment", "legacy maintenance", "slow-paced",
-    "documentation first", "waterfall", "not startup"
+DIMENSION_WEIGHTS = {
+    "jd_alignment": 0.30,
+    "technical":    0.30,
+    "production":   0.25,
+    "availability": 0.08,
+    "behavior":     0.07,
 }
 
-# --- NEW: Non-Compete / Legal Risk Patterns ---
-NON_COMPETE_TERMS = {
-    "non-compete", "non compete", "noncompete", "restrictive covenant",
-    "garden leave", "gardening leave", "binding agreement", "exclusivity clause"
-}
-
-# --- NEW: CV/Speech/Robotics Domain Mismatch Patterns ---
-CV_SPEECH_DOMAIN_TERMS = {
-    "computer vision", "image segmentation", "object detection", "yolo", "resnet",
-    "convolutional neural", "speech recognition", "asr", "tts", "text to speech",
-    "robotics", "autonomous driving", "self-driving", "lidar", "slam",
-    "gesture recognition", "pose estimation", "image classification", "opencv"
-}
-
-# --- NEW: Manager-only / no-coding titles ---
-MANAGER_ONLY_TITLES = {
-    "director", "vp", "vice president", "head of", "chief", "cto", "ceo",
-    "program manager", "project manager", "delivery manager", "engagement manager",
-    "practice head", "group manager"
-}
-
-# --- NEW: Framework Enthusiast without eval (LangChain-only risk) ---
-FRAMEWORK_ONLY_TERMS = {
-    "langchain", "llamaindex", "llama index", "autogen", "crewai",
-    "haystack", "semantic kernel"
-}
-
-# --- Ranking-specific and title-fit patterns ---
-RANKING_TITLE_KEYWORDS = {
-    "search", "ranking", "retrieval", "recommendation", "relevance",
-    "discovery", "matching", "information retrieval", "ir engineer"
-}
-GENERIC_ML_TITLES = {
-    "ml engineer", "machine learning engineer", "data scientist",
-    "applied scientist", "ai engineer", "nlp engineer", "senior ml",
-}
-MISALIGNED_TITLE_TERMS = {
-    "hr manager", "accountant", "graphic designer", "content writer",
-    "sales executive", "customer support", "civil engineer", "mechanical engineer",
-    "devops engineer", "operations manager", "marketing manager", "business analyst",
-    "project manager", "delivery manager",
-}
-
-# --- NEW: Pre-LLM era classic ML tools ---
-PRE_LLM_TOOLS = {
-    "xgboost", "lightgbm", "catboost", "sklearn", "scikit-learn",
-    "gradient boosting", "random forest", "logistic regression",
-    "feature engineering", "elasticsearch", "solr", "lucene",
-    "learning to rank", "ltr", "lambdamart"
-}
-
-JD_TEXT = """
-Senior AI Engineer building ranking, retrieval, and matching systems.
-Needs production experience owning retrieval and ranking systems, embeddings-based search, hybrid search, and vector database deployment.
-Must be comfortable solving real user problems and shipping product-grade systems under time constraints.
-Candidate should have strong Python fluency, evaluation framework experience, and a product orientation over research.
-"""
-
-# 4. Multipliers & Thresholds
-GHOST_RESPONSE_RATE_THRESHOLD = 0.25
-GHOST_INACTIVE_DAYS_THRESHOLD = 60
-NOTICE_PERIOD_PREFERRED = 60
+UNREACH_CAP           = 0.65
+VISA_CAP              = 0.62
+INTEGRITY_CAP         = 0.50
+GHOST_INACTIVE_DAYS   = 120
+GHOST_RRR_THRESHOLD   = 0.10
+UNREACH_INACTIVE_DAYS = 90
+UNREACH_RRR_THRESHOLD = 0.20
 IDEAL_YOE_MIN = 5.0
 IDEAL_YOE_MAX = 9.0
-IDEAL_AI_YOE = 5.0
-MAX_NOTICE_DAYS = 90
-
-# 5. Layer 2 Scoring Weights (positive features, sum to 1.0)
-# Tuned against human-labeled candidates: emphasize retrieval/production depth,
-# reduce over-reliance on title wording and recruiter visibility alone.
-POSITIVE_WEIGHTS = {
-    "retrieval_score":          0.17,  # Core retrieval/ranking skill match
-    "production_fit":           0.13,  # Vector DB + hybrid search + eval + shipping
-    "evaluation_score":         0.08,  # NDCG/MRR/precision@k evidence
-    "pre_llm_score":            0.06,  # Pre-2022 search/ranking/ML experience
-    "ai_yoe_score":             0.06,  # Total AI/ML years of experience
-    "ranking_yoe_score":        0.08,  # Years in ranking/search roles
-    "title_fit_score":          0.06,  # Current title alignment (with career override)
-    "jd_similarity_score":      0.04,  # TF-IDF cosine similarity to JD
-    "recruiter_demand_score":   0.03,  # Saves, search appearances, profile views
-    "platform_skill_score":     0.03,  # Redrob skill assessment scores
-    "product_engineer_fit":     0.05,  # Product-company + shipping orientation
-    "experience_fit":           0.04,  # Overall YOE sweet-spot (5-9 years)
-    "recent_coder_score":       0.04,  # Hands-on coding within 18 months
-    "location_score":           0.03,  # Geography preference
-    "notice_score":             0.02,  # Notice period
-    "response_score":           0.05,  # Recruiter response + interview reliability
-    "shipping_score":           0.03,  # Track record of shipping/deploying
-}
-
-# 6. Multiplicative Penalty Factors (dealbreakers, each in [0, 1])
-PENALTY_DEFAULTS = {
-    "honeypot":              0.0,   # Fictional company / YOE mismatch / keyword-stuffed
-    "non_compete":           0.15,  # Active non-compete clause
-    "cv_domain_mismatch":    0.30,  # Primary domain is CV/speech/robotics
-    "consultancy_only":      0.50,  # All career at service companies
-    "is_job_hopper":         0.55,  # Average tenure < 18 months
-    "is_manager_only":       0.40,  # Manager/Director title, no recent coding
-    "is_framework_enthusiast": 0.60,  # LangChain but no eval frameworks
-    "is_ghost":              0.35,  # Low response rate + high inactive days
-    "culture_misfit":        0.50,  # Stability-seeking in a high-velocity role
-    "flight_risk":           0.55,  # Offer acceptance rate < 0.20
-    "research_only":         0.60,  # Research-heavy with no shipping evidence
-}
